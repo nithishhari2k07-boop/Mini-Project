@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Farmer profile containing personal, agronomic, and farm land details.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string", "maxLength": 100 },
+        "age": { "type": "number" },
+        "email": { "type": "string", "maxLength": 150 },
+        "landAreaAcres": { "type": "number" },
+        "primaryCrop": { "type": "string", "maxLength": 100 },
+        "region": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["fullName", "email", "userId"]
+    },
+    "PesticideScanRecord": {
+      "title": "PesticideScanRecord",
+      "description": "Historical record of scanned pesticide label and dosage analysis.",
+      "type": "object",
+      "properties": {
+        "productName": { "type": "string", "maxLength": 150 },
+        "activeIngredient": { "type": "string", "maxLength": 150 },
+        "category": { "type": "string", "maxLength": 50 },
+        "dosagePerAcre": { "type": "string", "maxLength": 150 },
+        "preHarvestIntervalDays": { "type": "number" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["productName", "userId"]
+    },
+    "WeatherAlertRecord": {
+      "title": "WeatherAlertRecord",
+      "description": "Extreme weather push notification event logged for the farmer.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 500 },
+        "eventType": { "type": "string", "enum": ["heat_wave", "heavy_rain", "high_wind", "general"] },
+        "severity": { "type": "string", "enum": ["warning", "alert", "info"] },
+        "temperatureC": { "type": "number" },
+        "precipitationMm": { "type": "number" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["title", "eventType", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document indexed by Firebase Auth UID."
+    },
+    "/scans/{scanId}": {
+      "schema": "PesticideScanRecord",
+      "description": "Scanned agrochemical labels belonging to the farmer."
+    },
+    "/weatherAlerts/{alertId}": {
+      "schema": "WeatherAlertRecord",
+      "description": "Extreme weather advisory alerts sent to the farmer."
+    }
+  }
+}

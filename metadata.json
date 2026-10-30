@@ -1,0 +1,10 @@
+{
+  "name": "Techno Crop AI",
+  "description": "Smart Farming, Healthier Crops. Voice-enabled agricultural advisor, smart irrigation, soil pH sensor connectivity, pesticide label scanner, and market intelligence for farmers.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "notifications"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

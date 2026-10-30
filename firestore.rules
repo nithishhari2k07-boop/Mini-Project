@@ -1,0 +1,101 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Hardened Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User Profile Validation Blueprint
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['fullName', 'email', 'userId'])
+        && data.keys().hasOnly(['fullName', 'age', 'email', 'landAreaAcres', 'primaryCrop', 'region', 'userId', 'updatedAt'])
+        && data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 150
+        && data.userId is string && data.userId == request.auth.uid
+        && (!('age' in data) || (data.age is number && data.age >= 1 && data.age <= 120))
+        && (!('landAreaAcres' in data) || (data.landAreaAcres is number && data.landAreaAcres > 0 && data.landAreaAcres <= 10000))
+        && (!('primaryCrop' in data) || (data.primaryCrop is string && data.primaryCrop.size() <= 100))
+        && (!('region' in data) || (data.region is string && data.region.size() <= 100))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
+    }
+
+    // Pesticide Scan Record Validation
+    function isValidScan(data) {
+      return data.keys().hasAll(['productName', 'userId'])
+        && data.keys().hasOnly(['productName', 'activeIngredient', 'category', 'dosagePerAcre', 'preHarvestIntervalDays', 'userId', 'timestamp'])
+        && data.productName is string && data.productName.size() > 0 && data.productName.size() <= 150
+        && data.userId is string && data.userId == request.auth.uid
+        && (!('activeIngredient' in data) || (data.activeIngredient is string && data.activeIngredient.size() <= 150))
+        && (!('category' in data) || (data.category is string && data.category.size() <= 50))
+        && (!('dosagePerAcre' in data) || (data.dosagePerAcre is string && data.dosagePerAcre.size() <= 150))
+        && (!('preHarvestIntervalDays' in data) || data.preHarvestIntervalDays is number)
+        && (!('timestamp' in data) || (data.timestamp is string && data.timestamp.size() <= 50));
+    }
+
+    // Weather Alert Record Validation
+    function isValidWeatherAlert(data) {
+      return data.keys().hasAll(['title', 'eventType', 'userId'])
+        && data.keys().hasOnly(['title', 'message', 'eventType', 'severity', 'temperatureC', 'precipitationMm', 'userId', 'timestamp'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 150
+        && data.eventType is string && data.eventType in ['heat_wave', 'heavy_rain', 'high_wind', 'general']
+        && data.userId is string && data.userId == request.auth.uid
+        && (!('message' in data) || (data.message is string && data.message.size() <= 500))
+        && (!('severity' in data) || (data.severity is string && data.severity in ['warning', 'alert', 'info']))
+        && (!('temperatureC' in data) || data.temperatureC is number)
+        && (!('precipitationMm' in data) || data.precipitationMm is number)
+        && (!('timestamp' in data) || (data.timestamp is string && data.timestamp.size() <= 50));
+    }
+
+    // Match Rules for Collections
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming())
+        && incoming().userId == existing().userId;
+      allow delete: if isOwner(userId);
+    }
+
+    match /scans/{scanId} {
+      allow get, delete: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(scanId) && isValidScan(incoming());
+      allow update: if isSignedIn() && existing().userId == request.auth.uid
+        && isValidScan(incoming()) && incoming().userId == existing().userId;
+    }
+
+    match /weatherAlerts/{alertId} {
+      allow get, delete: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(alertId) && isValidWeatherAlert(incoming());
+      allow update: if false; // Weather alerts are immutable logs once generated
+    }
+
+    // Connectivity test document
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
